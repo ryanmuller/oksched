@@ -1,0 +1,18 @@
+{
+  "name": "scheduling",
+  "version": "0.0.0",
+  "authors": [
+    "Ryan Muller <cognitionmachine@gmail.com>"
+  ],
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "fullcalendar": "~2.3.1"
+  }
+}

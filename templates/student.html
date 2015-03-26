@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+{% block body %}
+  <p class="instruct">First select a teacher. Then click on a 30-minute time block to schedule a session.</p>
+  <div id="teacher-step">
+    <label for="teacher">Select teacher:</label>
+    <select id="teacher">
+    {% for teacher in teachers %}
+      <option value="{{ teacher.id }}">{{ teacher.name }}</option>
+    {% endfor %}
+    </select>
+  </div>
+  <div id="calendar-step">
+    <div id="student-calendar" class="calendar"></div>
+  </div>
+{% endblock %}
