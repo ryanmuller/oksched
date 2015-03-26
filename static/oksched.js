@@ -19,16 +19,35 @@ $(document).ready(function() {
     defaultView: 'agendaWeek',
     allDaySlot: false,
     defaultTimedEventDuration: "00:30:00",
-    selectable: false,
+    selectable: true,
     select: function(start, end) {
       $.post("/add", {
                start_time: start.unix(),
                end_time:   end.unix(),
                teacher_id: oksched.selectedTeacherId()
-             }, function() {
-               oksched.reload()
-             })
+             }, oksched.reload)
     },
     editable: false
+  })
+
+  $('#student-calendar').fullCalendar({
+    events: {
+      url: '/events',
+      data: function() { return { teacher_id: oksched.selectedTeacherId() } }
+    },
+    defaultView: 'agendaWeek',
+    allDaySlot: false,
+    defaultTimedEventDuration: "00:30:00",
+    selectable: false,
+    editable: false,
+    eventClick: function(event) {
+      if (window.confirm("Schedule at this time?")) {
+        $.post("/match", {
+                 student_id: 1,
+                 start_time: event.start.unix(),
+                 teacher_id: oksched.selectedTeacherId()
+               }, oksched.reload)
+      }
+    }
   })
 })
