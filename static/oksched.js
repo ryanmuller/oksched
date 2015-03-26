@@ -27,7 +27,17 @@ $(document).ready(function() {
                teacher_id: oksched.selectedTeacherId()
              }, oksched.reload)
     },
-    editable: false
+    editable: false,
+    eventClick: function(event) {
+      if (window.confirm("Do you really want to remove this availability?")) {
+        $.ajax({
+          url: "/remove",
+          type: "DELETE",
+          data: { teacher_id: oksched.selectedTeacherId(), start_time: event.start.unix() },
+          success: oksched.reload
+        })
+      }
+    }
   })
 
   $('#student-calendar').fullCalendar({

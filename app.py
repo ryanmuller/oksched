@@ -9,7 +9,7 @@ x create student page showing availabilities
 x click event to create appointment
 x show availabilities with appointments
 x nicer showing of appointments
-- delete availabilities
+x delete availabilities
 - show warning for failed appointments
 - handle multiple students
 - disable availabilities with appointments for students
@@ -27,8 +27,17 @@ http://flask.pocoo.org/docs/0.10/tutorial/introduction/
 http://flask.pocoo.org/docs/0.10/api/
 http://fullcalendar.io/docs/usage/
 
-sqlite3 /tmp/flaskr.db < schema.sql
+union all
+select appointments.start_time, teachers.name as teacher_name, students.name as student_name
+from appoinments
+    join teachers
+        on teachers.id = appointments.teacher_id
+    left join appointments
+        on appointments.teacher_id = availabilities.teacher_id
+        and appointments.start_time = availabilities.start_time
+    left join students on students.id = appointments.student_id
 '''
+
 
 import sqlite3
 import time
@@ -80,6 +89,9 @@ def event_color(scheduled):
     else:
         return "#3a87ad"
 
+def unix_to_dbtime(t):
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(int(t)))
+
 @app.route("/")
 def show_student():
     return render_template("student.html", teachers=get_teachers())
@@ -90,12 +102,17 @@ def show_teacher():
 
 @app.route("/events")
 def list_events():
-    cur = g.db.execute("""select availabilities.start_time, teachers.name as teacher_name, students.name as student_name
-                       from availabilities
-                       join teachers on teachers.id = availabilities.teacher_id
-                       left join appointments on appointments.teacher_id = availabilities.teacher_id and appointments.start_time = availabilities.start_time
-                       left join students on students.id = appointments.student_id
-                       where teachers.id = ?""", request.args['teacher_id'])
+    cur = g.db.execute("""
+select availabilities.start_time, teachers.name as teacher_name, students.name as student_name
+from availabilities
+    join teachers
+        on teachers.id = availabilities.teacher_id
+    left join appointments
+        on appointments.teacher_id = availabilities.teacher_id
+        and appointments.start_time = availabilities.start_time
+    left join students on students.id = appointments.student_id
+    where teachers.id = ?
+        """, request.args['teacher_id'])
     events = [dict(start=row[0], title=event_title_by_names(row[1], row[2]), color=event_color(row[2] is not None)) for row in cur.fetchall()]
     return json.dumps(events)
 
@@ -111,11 +128,19 @@ def create_availability():
     g.db.commit()
     return "OK"
 
+@app.route('/remove', methods=['DELETE'])
+def destroy_availability():
+    teacher_id = request.form['teacher_id']
+    start_time = unix_to_dbtime(request.form['start_time'])
+    g.db.execute('delete from availabilities where teacher_id = ? and start_time = ?', [teacher_id, start_time])
+    g.db.commit()
+    return "OK"
+
 @app.route('/match', methods=['POST'])
 def create_appointment():
     student_id = request.form['student_id']
     teacher_id = request.form['teacher_id']
-    start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(int(request.form['start_time'])))
+    start_time = unix_to_dbtime(request.form['start_time'])
     g.db.execute('insert into appointments (student_id, teacher_id, start_time) values (?, ?, ?)', [student_id, teacher_id, start_time])
     g.db.commit()
     return "OK"
