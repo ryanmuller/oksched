@@ -1,34 +1,12 @@
 '''
 TODO
-x request and show availabilities
-x initiate db
-x use db for teachers
-x use db for teacher events
-x create availabilities from event ranges
-x create student page showing availabilities
-x click event to create appointment
-x show availabilities with appointments
-x nicer showing of appointments
-x delete availabilities
-x show warning for failed appointments
-x delete appointments
-x handle multiple students
 - disable availabilities with appointments for students
 - limit events by date range
-- timezone concerns
+- timezone concerns - user awareness (is calendar in GMT?)
 - performance concerns
 - handle colors client side
 - don't change the past, marty
-
-personal reference...
-http://flask-script.readthedocs.org/en/latest/
-https://flask-migrate.readthedocs.org/en/latest/
-https://pythonhosted.org/Flask-SQLAlchemy/quickstart.html
-http://flask.pocoo.org/docs/0.10/tutorial/introduction/
-http://flask.pocoo.org/docs/0.10/api/
-http://fullcalendar.io/docs/usage/
 '''
-
 
 import sqlite3
 import time
@@ -45,7 +23,6 @@ app.config.from_object(__name__)
 Bower(app)
 
 def connect_db():
-    print app.config['DATABASE']
     return sqlite3.connect(app.config['DATABASE'])
 
 def init_db():
