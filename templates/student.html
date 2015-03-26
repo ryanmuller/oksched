@@ -1,5 +1,13 @@
 {% extends "layout.html" %}
 {% block body %}
+  <div id="identity">
+    Using as
+    <select id="student">
+    {% for student in students %}
+      <option value="{{ student.id }}">{{ student.name }}</option>
+    {% endfor %}
+    </select>
+  </div>
   <p class="instruct">First select a teacher. Then click on a 30-minute time block to schedule a session.</p>
   <div id="teacher-step">
     <label for="teacher">Select teacher:</label>

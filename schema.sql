@@ -29,7 +29,7 @@ create table appointments (
 -- if availability is deleted, start time is also stored so that another match can be made
 
 insert into teachers (name) values ('curly'), ('larry'), ('moe');
-insert into students (name) values ('leo');
-insert into availabilities (teacher_id, start_time) values (1, '2015-03-26 12:00'),
-                                                           (2, '2015-03-26 02:00'),
-                                                           (3, '2015-03-27 15:30');
+insert into students (name) values ('leonardo'), ('donatello'), ('raphael'), ('michelangelo');
+insert into availabilities (teacher_id, start_time) values (1, '2015-03-26 12:00:00'),
+                                                           (2, '2015-03-26 02:00:00'),
+                                                           (3, '2015-03-27 15:30:00');

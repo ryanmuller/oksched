@@ -2,16 +2,20 @@ var oksched = oksched || {}
 oksched.selectedTeacherId = function() {
   return $("#teacher").val()
 }
+oksched.selectedStudentId = function() {
+  return $("#student").val()
+}
 oksched.reload = function() {
   $('.calendar').fullCalendar('refetchEvents')
 }
 
 $(document).ready(function() {
+  if ($('#student').length) $('#student').change(oksched.reload)
   $('#teacher').change(oksched.reload)
 
   $('#teacher-calendar').fullCalendar({
     events: {
-      url: '/events',
+      url: '/teacher_events',
       data: function() {
         return { teacher_id: oksched.selectedTeacherId() }
       }
@@ -43,7 +47,7 @@ $(document).ready(function() {
   $('#student-calendar').fullCalendar({
     events: {
       url: '/events',
-      data: function() { return { teacher_id: oksched.selectedTeacherId() } }
+      data: function() { return { student_id: oksched.selectedStudentId(), teacher_id: oksched.selectedTeacherId() } }
     },
     defaultView: 'agendaWeek',
     allDaySlot: false,
@@ -56,14 +60,14 @@ $(document).ready(function() {
           $.ajax({
             url: "/cancel",
             type: "DELETE",
-            data: { student_id: 1, start_time: event.start.unix() },
+            data: { student_id: oksched.selectedStudentId(), start_time: event.start.unix() },
             success: oksched.reload
           })
         }
       } else {
         if (window.confirm("Schedule at this time?")) {
           $.post("/match", {
-                   student_id: 1,
+                   student_id: oksched.selectedStudentId(),
                    start_time: event.start.unix(),
                    teacher_id: oksched.selectedTeacherId()
                  }, oksched.reload)

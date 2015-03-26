@@ -1,15 +1,15 @@
 {% extends "layout.html" %}
 {% block body %}
-  <p class="instruct">First select your name. Then drag a time range to indicate when you are available. Your selection will be converted to 30-minute blocks.</p>
-  <p class="instruct">To remove a time, click then confirm.</p>
-  <div id="teacher-step">
-    <label for="teacher">Select teacher:</label>
+  <div id="identity">
+    Using as
     <select id="teacher">
     {% for teacher in teachers %}
       <option value="{{ teacher.id }}">{{ teacher.name }}</option>
     {% endfor %}
     </select>
   </div>
+  <p class="instruct">Drag a time range to indicate when you are available. Your selection will be converted to 30-minute blocks.</p>
+  <p class="instruct">To remove a time, click then confirm.</p>
   <div id="calendar-step">
     <div id="teacher-calendar" class="calendar"></div>
   </div>

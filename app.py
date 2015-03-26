@@ -12,7 +12,7 @@ x nicer showing of appointments
 x delete availabilities
 x show warning for failed appointments
 x delete appointments
-- handle multiple students
+x handle multiple students
 - disable availabilities with appointments for students
 - limit events by date range
 - timezone concerns
@@ -57,6 +57,7 @@ def init_db():
 @app.before_request
 def before_request():
     g.db = connect_db()
+    g.db.row_factory = sqlite3.Row
 
 @app.teardown_request
 def teardown_request(exception):
@@ -68,28 +69,46 @@ def get_teachers():
     cur = g.db.execute("select id, name from teachers")
     return [dict(id=row[0], name=row[1]) for row in cur.fetchall()]
 
-def event_title(teacher_name, student_name, missing):
-    if missing:
-        return "{1} (cancelled by {0})".format(teacher_name, student_name)
-    elif teacher_name and student_name:
-        return "{0} & {1}".format(teacher_name, student_name)
-    else:
-        return teacher_name
+def get_students():
+    cur = g.db.execute("select id, name from students")
+    return [dict(id=row[0], name=row[1]) for row in cur.fetchall()]
 
-def event_color(scheduled, missing):
-    if missing:
-        return "red"
-    elif scheduled:
-        return "green"
+def event_data_from_row(row, current_student_id):
+    if current_student_id is not None:
+        current_student_id = int(current_student_id)
+    event = { 'start': row['start_time'], 'title': row['teacher_name'], 'color': '#3a87ad' }
+    mine = row['student_id'] is not None and row['student_id'] == current_student_id
+
+    if mine:
+        if int(row['missing_teacher']) == 1:
+            event['title'] = 'CANCELLED ({0})'.format(row['teacher_name'])
+            event['color'] = 'red'
+        else:
+            event['color'] = 'green'
     else:
-        return "#3a87ad"
+        if row['student_id'] is not None:
+            event['color'] = '#eee'
+
+    return event
+
+def teacher_event_data_from_row(row):
+    event = { 'start': row['start_time'], 'title': 'available', 'color': '#3a87ad' }
+
+    if row['student_name'] is not None:
+        event['title'] = row['student_name']
+        event['color'] = 'green'
+
+    if int(row['missing_teacher']) == 1:
+        event['color'] = 'red'
+
+    return event
 
 def unix_to_dbtime(t):
     return time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(int(t)))
 
 @app.route("/")
 def show_student():
-    return render_template("student.html", teachers=get_teachers())
+    return render_template("student.html", students=get_students(), teachers=get_teachers())
 
 @app.route("/teacher")
 def show_teacher():
@@ -98,7 +117,8 @@ def show_teacher():
 @app.route("/events")
 def list_events():
     cur = g.db.execute("""
-select availabilities.start_time, teachers.name as teacher_name, students.name as student_name, 0 as missing_teacher_name
+select availabilities.start_time, teachers.id as teacher_id, teachers.name as teacher_name,
+       students.id as student_id, students.name as student_name, 0 as missing_teacher
 from availabilities
     join teachers
         on teachers.id = availabilities.teacher_id
@@ -108,7 +128,39 @@ from availabilities
     left join students on students.id = appointments.student_id
     where teachers.id = ?
 union all
-select appointments.start_time, teachers.name as teacher_name, students.name as student_name, 1 as missing_teacher_name
+select appointments.start_time, teachers.id as teacher_id, teachers.name as teacher_name,
+       students.id as student_id, students.name as student_name, 1 as missing_teacher
+from appointments
+    join students
+        on students.id = appointments.student_id
+    join teachers
+        on teachers.id = appointments.teacher_id
+    left join availabilities
+        on appointments.teacher_id = availabilities.teacher_id
+        and appointments.start_time = availabilities.start_time
+    where students.id = ?
+        and teachers.id = ?
+        and availabilities.teacher_id is null
+        """, [request.args['teacher_id'], request.args['student_id'], request.args['teacher_id']])
+    events = [event_data_from_row(row, request.args['student_id']) for row in cur.fetchall()]
+    return json.dumps(events)
+
+@app.route("/teacher_events")
+def list_events_for_teacher():
+    cur = g.db.execute("""
+select availabilities.start_time, teachers.id as teacher_id, teachers.name as teacher_name,
+       students.id as student_id, students.name as student_name, 0 as missing_teacher
+from availabilities
+    join teachers
+        on teachers.id = availabilities.teacher_id
+    left join appointments
+        on appointments.teacher_id = availabilities.teacher_id
+        and appointments.start_time = availabilities.start_time
+    left join students on students.id = appointments.student_id
+    where teachers.id = ?
+union all
+select appointments.start_time, teachers.id as teacher_id, teachers.name as teacher_name,
+       students.id as student_id, students.name as student_name, 1 as missing_teacher
 from appointments
     join students
         on students.id = appointments.student_id
@@ -120,7 +172,7 @@ from appointments
     where teachers.id = ?
         and availabilities.teacher_id is null
         """, [request.args['teacher_id'], request.args['teacher_id']])
-    events = [dict(start=row[0], title=event_title(row[1], row[2], row[3] == 1), color=event_color(row[2] is not None, row[3] == 1)) for row in cur.fetchall()]
+    events = [teacher_event_data_from_row(row) for row in cur.fetchall()]
     return json.dumps(events)
 
 @app.route('/add', methods=['POST'])
