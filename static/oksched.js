@@ -51,12 +51,23 @@ $(document).ready(function() {
     selectable: false,
     editable: false,
     eventClick: function(event) {
-      if (window.confirm("Schedule at this time?")) {
-        $.post("/match", {
-                 student_id: 1,
-                 start_time: event.start.unix(),
-                 teacher_id: oksched.selectedTeacherId()
-               }, oksched.reload)
+      if (event.color == 'green' || event.color == 'red') {
+        if (window.confirm("Do you really want to cancel this session?")) {
+          $.ajax({
+            url: "/cancel",
+            type: "DELETE",
+            data: { student_id: 1, start_time: event.start.unix() },
+            success: oksched.reload
+          })
+        }
+      } else {
+        if (window.confirm("Schedule at this time?")) {
+          $.post("/match", {
+                   student_id: 1,
+                   start_time: event.start.unix(),
+                   teacher_id: oksched.selectedTeacherId()
+                 }, oksched.reload)
+        }
       }
     }
   })

@@ -10,14 +10,15 @@ x click event to create appointment
 x show availabilities with appointments
 x nicer showing of appointments
 x delete availabilities
-- show warning for failed appointments
+x show warning for failed appointments
+x delete appointments
 - handle multiple students
 - disable availabilities with appointments for students
-- delete appointments
 - limit events by date range
 - timezone concerns
 - performance concerns
 - handle colors client side
+- don't change the past, marty
 
 personal reference...
 http://flask-script.readthedocs.org/en/latest/
@@ -26,16 +27,6 @@ https://pythonhosted.org/Flask-SQLAlchemy/quickstart.html
 http://flask.pocoo.org/docs/0.10/tutorial/introduction/
 http://flask.pocoo.org/docs/0.10/api/
 http://fullcalendar.io/docs/usage/
-
-union all
-select appointments.start_time, teachers.name as teacher_name, students.name as student_name
-from appoinments
-    join teachers
-        on teachers.id = appointments.teacher_id
-    left join appointments
-        on appointments.teacher_id = availabilities.teacher_id
-        and appointments.start_time = availabilities.start_time
-    left join students on students.id = appointments.student_id
 '''
 
 
@@ -77,14 +68,18 @@ def get_teachers():
     cur = g.db.execute("select id, name from teachers")
     return [dict(id=row[0], name=row[1]) for row in cur.fetchall()]
 
-def event_title_by_names(teacher_name, student_name):
-    if student_name:
+def event_title(teacher_name, student_name, missing):
+    if missing:
+        return "{1} (cancelled by {0})".format(teacher_name, student_name)
+    elif teacher_name and student_name:
         return "{0} & {1}".format(teacher_name, student_name)
     else:
         return teacher_name
 
-def event_color(scheduled):
-    if scheduled:
+def event_color(scheduled, missing):
+    if missing:
+        return "red"
+    elif scheduled:
         return "green"
     else:
         return "#3a87ad"
@@ -103,7 +98,7 @@ def show_teacher():
 @app.route("/events")
 def list_events():
     cur = g.db.execute("""
-select availabilities.start_time, teachers.name as teacher_name, students.name as student_name
+select availabilities.start_time, teachers.name as teacher_name, students.name as student_name, 0 as missing_teacher_name
 from availabilities
     join teachers
         on teachers.id = availabilities.teacher_id
@@ -112,8 +107,20 @@ from availabilities
         and appointments.start_time = availabilities.start_time
     left join students on students.id = appointments.student_id
     where teachers.id = ?
-        """, request.args['teacher_id'])
-    events = [dict(start=row[0], title=event_title_by_names(row[1], row[2]), color=event_color(row[2] is not None)) for row in cur.fetchall()]
+union all
+select appointments.start_time, teachers.name as teacher_name, students.name as student_name, 1 as missing_teacher_name
+from appointments
+    join students
+        on students.id = appointments.student_id
+    join teachers
+        on teachers.id = appointments.teacher_id
+    left join availabilities
+        on appointments.teacher_id = availabilities.teacher_id
+        and appointments.start_time = availabilities.start_time
+    where teachers.id = ?
+        and availabilities.teacher_id is null
+        """, [request.args['teacher_id'], request.args['teacher_id']])
+    events = [dict(start=row[0], title=event_title(row[1], row[2], row[3] == 1), color=event_color(row[2] is not None, row[3] == 1)) for row in cur.fetchall()]
     return json.dumps(events)
 
 @app.route('/add', methods=['POST'])
@@ -142,6 +149,14 @@ def create_appointment():
     teacher_id = request.form['teacher_id']
     start_time = unix_to_dbtime(request.form['start_time'])
     g.db.execute('insert into appointments (student_id, teacher_id, start_time) values (?, ?, ?)', [student_id, teacher_id, start_time])
+    g.db.commit()
+    return "OK"
+
+@app.route('/cancel', methods=['DELETE'])
+def destroy_appointment():
+    student_id = request.form['student_id']
+    start_time = unix_to_dbtime(request.form['start_time'])
+    g.db.execute('delete from appointments where student_id = ? and start_time = ?', [student_id, start_time])
     g.db.commit()
     return "OK"
 
