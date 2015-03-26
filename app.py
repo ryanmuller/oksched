@@ -8,15 +8,16 @@ x create availabilities from event ranges
 x create student page showing availabilities
 x click event to create appointment
 x show availabilities with appointments
-- nicer showing of appointments
-- disable availabilities with appointments for students
+x nicer showing of appointments
 - delete availabilities
 - show warning for failed appointments
-- delete appointments
 - handle multiple students
+- disable availabilities with appointments for students
+- delete appointments
 - limit events by date range
 - timezone concerns
 - performance concerns
+- handle colors client side
 
 personal reference...
 http://flask-script.readthedocs.org/en/latest/
@@ -73,6 +74,12 @@ def event_title_by_names(teacher_name, student_name):
     else:
         return teacher_name
 
+def event_color(scheduled):
+    if scheduled:
+        return "green"
+    else:
+        return "#3a87ad"
+
 @app.route("/")
 def show_student():
     return render_template("student.html", teachers=get_teachers())
@@ -89,7 +96,7 @@ def list_events():
                        left join appointments on appointments.teacher_id = availabilities.teacher_id and appointments.start_time = availabilities.start_time
                        left join students on students.id = appointments.student_id
                        where teachers.id = ?""", request.args['teacher_id'])
-    events = [dict(start=row[0], title=event_title_by_names(row[1], row[2])) for row in cur.fetchall()]
+    events = [dict(start=row[0], title=event_title_by_names(row[1], row[2]), color=event_color(row[2] is not None)) for row in cur.fetchall()]
     return json.dumps(events)
 
 @app.route('/add', methods=['POST'])
